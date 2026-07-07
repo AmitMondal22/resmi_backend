@@ -17,7 +17,7 @@ async function writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, ov
       .floatField('total_flow', total_flow)
       .floatField('minValue', minValue)
       .floatField('maxValue', maxValue)
-      .integerField('overflowCount', overflowCount);
+      .intField('overflowCount', overflowCount);
 
     if (timestamp) {
       const parsedTime = new Date(timestamp);
