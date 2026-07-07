@@ -9,7 +9,7 @@ const client = new InfluxDB({ url, token });
 const writeApi = client.getWriteApi(org, bucket, 'ns');
 const queryApi = client.getQueryApi(org);
 
-async function writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, overflowCount, timestamp) {
+async function writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, overflowCount, cumulativeTotalizer, timestamp) {
   try {
     const point = new Point('device_flow')
       .tag('deviceId', deviceId)
@@ -17,7 +17,8 @@ async function writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, ov
       .floatField('total_flow', total_flow)
       .floatField('minValue', minValue)
       .floatField('maxValue', maxValue)
-      .intField('overflowCount', overflowCount);
+      .intField('overflowCount', overflowCount)
+      .floatField('cumulativeTotalizer', cumulativeTotalizer);
 
     if (timestamp) {
       const parsedTime = new Date(timestamp);
@@ -40,9 +41,9 @@ async function getBaseTotalizers(deviceId) {
   const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
   const queries = {
-    today: `from(bucket: "${bucket}") |> range(start: ${startOfToday}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "total_flow") |> first()`,
-    month: `from(bucket: "${bucket}") |> range(start: ${startOfMonth}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "total_flow") |> first()`,
-    year: `from(bucket: "${bucket}") |> range(start: ${startOfYear}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "total_flow") |> first()`
+    today: `from(bucket: "${bucket}") |> range(start: ${startOfToday}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`,
+    month: `from(bucket: "${bucket}") |> range(start: ${startOfMonth}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`,
+    year: `from(bucket: "${bucket}") |> range(start: ${startOfYear}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`
   };
 
   const getFirstVal = (query) => {
@@ -118,6 +119,7 @@ async function queryTelemetry(deviceId, fromDate, toDate, interval) {
           minValue: o.minValue !== undefined ? o.minValue : 0,
           maxValue: o.maxValue !== undefined ? o.maxValue : 0,
           overflowCount: o.overflowCount !== undefined ? o.overflowCount : 0,
+          cumulativeTotalizer: o.cumulativeTotalizer !== undefined ? o.cumulativeTotalizer : 0,
         });
       },
       error(err) {
@@ -163,6 +165,7 @@ async function queryLatestTelemetry(allowedDeviceIds, isAdmin) {
           minValue: o.minValue !== undefined ? o.minValue : 0,
           maxValue: o.maxValue !== undefined ? o.maxValue : 0,
           overflowCount: o.overflowCount !== undefined ? o.overflowCount : 0,
+          cumulativeTotalizer: o.cumulativeTotalizer !== undefined ? o.cumulativeTotalizer : 0,
         });
       },
       error(err) {
@@ -179,18 +182,18 @@ async function queryLatestTelemetry(allowedDeviceIds, isAdmin) {
   const enriched = await Promise.all(rawData.map(async (item) => {
     const bases = await getBaseTotalizers(item.deviceId);
     
-    const today_base = bases.today_base !== null ? bases.today_base : item.total_flow;
-    const month_base = bases.month_base !== null ? bases.month_base : item.total_flow;
-    const year_base = bases.year_base !== null ? bases.year_base : item.total_flow;
+    const today_base = bases.today_base !== null ? bases.today_base : item.cumulativeTotalizer;
+    const month_base = bases.month_base !== null ? bases.month_base : item.cumulativeTotalizer;
+    const year_base = bases.year_base !== null ? bases.year_base : item.cumulativeTotalizer;
 
     return {
       ...item,
       today_base,
       month_base,
       year_base,
-      daily_flow: Math.max(0, item.total_flow - today_base),
-      monthly_flow: Math.max(0, item.total_flow - month_base),
-      yearly_flow: Math.max(0, item.total_flow - year_base),
+      daily_flow: Math.max(0, item.cumulativeTotalizer - today_base),
+      monthly_flow: Math.max(0, item.cumulativeTotalizer - month_base),
+      yearly_flow: Math.max(0, item.cumulativeTotalizer - year_base),
     };
   }));
 

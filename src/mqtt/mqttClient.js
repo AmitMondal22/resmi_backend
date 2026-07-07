@@ -140,22 +140,33 @@ function uint32(low, high) {
         const r = payload.registers;
         minValue = uint32(r[0], r[1]) / 100;
         maxValue = uint32(r[2], r[3]) / 100;
-        flow = parseFloat(r[4]) || 0;
-        total_flow = parseFloat(r[6]) || 0;
+        flow = uint32(r[4], r[5]) / 100;
+        total_flow = uint32(r[6], r[7]) / 100;
         overflowCount = uint32(r[8], r[9]);
       } else {
-        flow = parseFloat(payload.flow) || 0;
-        total_flow = parseFloat(payload.total_flow) || 0;
-        minValue = parseFloat(payload.minValue) || 0;
-        maxValue = parseFloat(payload.maxValue) || 0;
+        flow = (parseFloat(payload.flowRate || payload.flow) || 0) / 100;
+        total_flow = (parseFloat(payload.totalizer || payload.total_flow) || 0) / 100;
+        minValue = (parseFloat(payload.minValue) || 0) / 100;
+        maxValue = (parseFloat(payload.maxValue) || 0) / 100;
         overflowCount = parseInt(payload.overflowCount) || 0;
       }
 
       // Parse timestamp from payload time field, fallback to current time
       const timestamp = payload.time || new Date().toISOString();
 
+      const cumulativeTotalizer = overflowCount * 1000000 + total_flow;
+
+      console.log({
+        minValue,
+        maxValue,
+        flowRate: flow,
+        totalizer: total_flow,
+        overflowCount,
+        cumulativeTotalizer
+      });
+
       // Write to InfluxDB time-series
-      await writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, overflowCount, timestamp);
+      await writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, overflowCount, cumulativeTotalizer, timestamp);
 
       // Check active threshold rules
       await checkThresholdAlerts(deviceId, flow);
@@ -169,6 +180,7 @@ function uint32(low, high) {
           minValue,
           maxValue,
           overflowCount,
+          cumulativeTotalizer,
           timestamp
         });
       }
