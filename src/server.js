@@ -94,57 +94,11 @@ fastify.register(async (fastify) => {
   });
 });
 
-// ================= DB SEEDING & SERVER LAUNCH =================
-const seedDatabase = async () => {
-  await sequelize.sync({ alter: true });
-  
-  const userCount = await User.count();
-  if (userCount === 0) {
-    console.log('[Seeding] Creating default users...');
-    
-    const adminUser = await User.create({
-      username: 'admin',
-      password: 'admin123',
-      role: 'admin',
-    });
-    
-    const standardUser = await User.create({
-      username: 'user',
-      password: 'user123',
-      role: 'user',
-    });
-
-    console.log('[Seeding] Creating default devices...');
-    const dev1 = await Device.create({
-      id: 'flow-dev-01',
-      name: 'Main Supply Pipeline',
-      location: 'Primary Intake Tank A',
-      details: 'Industrial electromagnetic flowmeter. Range 0-50 L/s.',
-      status: 'active',
-    });
-
-    const dev2 = await Device.create({
-      id: 'flow-dev-02',
-      name: 'Secondary Supply Pipeline',
-      location: 'Auxiliary Water Station',
-      details: 'Turbine flow sensor. Range 0-20 L/s.',
-      status: 'active',
-    });
-
-    // Assign devices
-    await UserDevice.create({ UserId: adminUser.id, DeviceId: dev1.id });
-    await UserDevice.create({ UserId: adminUser.id, DeviceId: dev2.id });
-    await UserDevice.create({ UserId: standardUser.id, DeviceId: dev1.id });
-
-    console.log('[Seeding] Seeding completed.');
-  }
-};
-
 const PORT = process.env.PORT || 5000;
 
 async function start() {
   try {
-    await seedDatabase();
+
     
     // Setup MQTT subscription and direct websocket broadcast callback
     initMqtt((data) => {
