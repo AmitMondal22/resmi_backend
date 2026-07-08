@@ -52,9 +52,48 @@ async function deleteUser(request, reply) {
   return { message: 'User deleted successfully' };
 }
 
+async function getProfile(request, reply) {
+  try {
+    const user = await User.findByPk(request.user.id, { attributes: { exclude: ['password'] } });
+    if (!user) {
+      return reply.status(404).send({ error: 'User not found' });
+    }
+    return user;
+  } catch (err) {
+    return reply.status(500).send({ error: err.message });
+  }
+}
+
+async function updateProfile(request, reply) {
+  const { currentPassword, password } = request.body;
+  try {
+    const user = await User.findByPk(request.user.id);
+    if (!user) {
+      return reply.status(404).send({ error: 'User not found' });
+    }
+
+    if (!currentPassword || !password) {
+      return reply.status(400).send({ error: 'Current password and new password are required' });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return reply.status(400).send({ error: 'Incorrect current password' });
+    }
+
+    user.password = password;
+    await user.save();
+    return { id: user.id, username: user.username, role: user.role };
+  } catch (err) {
+    return reply.status(500).send({ error: err.message });
+  }
+}
+
 module.exports = {
   getAllUsers,
   createUser,
   updateUser,
   deleteUser,
+  getProfile,
+  updateProfile,
 };
