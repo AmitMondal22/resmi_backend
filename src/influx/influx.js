@@ -150,7 +150,7 @@ async function queryLatestTelemetry(allowedDeviceIds, isAdmin) {
       ${deviceFilter}
       |> pivot(rowKey:["_time", "deviceId"], columnKey: ["_field"], valueColumn: "_value")
       |> group(columns: ["deviceId"])
-      |> last()
+      |> last(column: "_time")
   `;
 
   const rawData = await new Promise((resolve, reject) => {
