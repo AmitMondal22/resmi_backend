@@ -34,7 +34,7 @@ async function writeTelemetry(deviceId, flow, total_flow, minValue, maxValue, ov
   }
 }
 
-async function getBaseTotalizers(deviceId) {
+async function getBaseTotalizers(deviceId, latestVal) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -58,7 +58,7 @@ async function getBaseTotalizers(deviceId) {
     });
   };
 
-  const getBaseVal = async (stopTime, rangeStart) => {
+  const getBaseVal = async (stopTime, rangeStart, currentLatest) => {
     // 1. Try to get the last value before the stopTime (previous period last value)
     const queryLast = `from(bucket: "${bucket}") |> range(start: ${rangeStart}, stop: ${stopTime}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> last()`;
     let val = await getFirstVal(queryLast);
@@ -68,13 +68,23 @@ async function getBaseTotalizers(deviceId) {
       const queryFirst = `from(bucket: "${bucket}") |> range(start: ${stopTime}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`;
       val = await getFirstVal(queryFirst);
     }
+
+    // 3. If baseline is greater than the current latest value, get the minimum value of current period
+    if (val !== null && currentLatest !== undefined && parseFloat(val) > parseFloat(currentLatest)) {
+      const queryMin = `from(bucket: "${bucket}") |> range(start: ${stopTime}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> min()`;
+      const minVal = await getFirstVal(queryMin);
+      if (minVal !== null) {
+        val = minVal;
+      }
+    }
+
     return val;
   };
 
   const [todayVal, monthVal, yearVal] = await Promise.all([
-    getBaseVal(startOfToday, '-30d'),
-    getBaseVal(startOfMonth, '-60d'),
-    getBaseVal(startOfYear, '-365d')
+    getBaseVal(startOfToday, '-30d', latestVal),
+    getBaseVal(startOfMonth, '-60d', latestVal),
+    getBaseVal(startOfYear, '-365d', latestVal)
   ]);
 
   return {
@@ -187,7 +197,7 @@ async function queryLatestTelemetry(allowedDeviceIds, isAdmin) {
 
   // Enrich with daily, monthly, yearly flow calculations using base totalizers
   const enriched = await Promise.all(rawData.map(async (item) => {
-    const bases = await getBaseTotalizers(item.deviceId);
+    const bases = await getBaseTotalizers(item.deviceId, item.cumulativeTotalizer);
     
     const today_base = bases.today_base !== null ? bases.today_base : item.cumulativeTotalizer;
     const month_base = bases.month_base !== null ? bases.month_base : item.cumulativeTotalizer;
