@@ -155,9 +155,8 @@ async function queryLatestTelemetry(allowedDeviceIds, isAdmin) {
       |> range(start: -30d)
       |> filter(fn: (r) => r["_measurement"] == "device_flow")
       ${deviceFilter}
+      |> last()
       |> pivot(rowKey:["_time", "deviceId"], columnKey: ["_field"], valueColumn: "_value")
-      |> group(columns: ["deviceId"])
-      |> last(column: "_time")
   `;
 
   const rawData = await new Promise((resolve, reject) => {
