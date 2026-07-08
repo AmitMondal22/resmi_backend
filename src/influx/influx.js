@@ -40,12 +40,6 @@ async function getBaseTotalizers(deviceId) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
-  const queries = {
-    today: `from(bucket: "${bucket}") |> range(start: ${startOfToday}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`,
-    month: `from(bucket: "${bucket}") |> range(start: ${startOfMonth}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`,
-    year: `from(bucket: "${bucket}") |> range(start: ${startOfYear}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`
-  };
-
   const getFirstVal = (query) => {
     return new Promise((resolve) => {
       let val = null;
@@ -64,10 +58,23 @@ async function getBaseTotalizers(deviceId) {
     });
   };
 
+  const getBaseVal = async (stopTime, rangeStart) => {
+    // 1. Try to get the last value before the stopTime (previous period last value)
+    const queryLast = `from(bucket: "${bucket}") |> range(start: ${rangeStart}, stop: ${stopTime}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> last()`;
+    let val = await getFirstVal(queryLast);
+    
+    // 2. If no data before stopTime, fallback to the first value of current period
+    if (val === null) {
+      const queryFirst = `from(bucket: "${bucket}") |> range(start: ${stopTime}) |> filter(fn: (r) => r["_measurement"] == "device_flow" and r["deviceId"] == "${deviceId}" and r["_field"] == "cumulativeTotalizer") |> first()`;
+      val = await getFirstVal(queryFirst);
+    }
+    return val;
+  };
+
   const [todayVal, monthVal, yearVal] = await Promise.all([
-    getFirstVal(queries.today),
-    getFirstVal(queries.month),
-    getFirstVal(queries.year)
+    getBaseVal(startOfToday, '-30d'),
+    getBaseVal(startOfMonth, '-60d'),
+    getBaseVal(startOfYear, '-365d')
   ]);
 
   return {
