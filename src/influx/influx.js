@@ -102,7 +102,7 @@ async function queryTelemetry(deviceId, fromDate, toDate, interval) {
       |> filter(fn: (r) => r["_measurement"] == "device_flow")
       |> filter(fn: (r) => r["deviceId"] == "${deviceId}")
       ${aggregation}
-      |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+      |> pivot(rowKey:["_time", "deviceId"], columnKey: ["_field"], valueColumn: "_value")
       |> sort(columns: ["_time"], desc: false)
   `;
 
@@ -148,8 +148,9 @@ async function queryLatestTelemetry(allowedDeviceIds, isAdmin) {
       |> range(start: -30d)
       |> filter(fn: (r) => r["_measurement"] == "device_flow")
       ${deviceFilter}
+      |> pivot(rowKey:["_time", "deviceId"], columnKey: ["_field"], valueColumn: "_value")
+      |> group(columns: ["deviceId"])
       |> last()
-      |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
   `;
 
   const rawData = await new Promise((resolve, reject) => {

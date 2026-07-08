@@ -81,7 +81,7 @@ async function checkThresholdAlerts(deviceId, flow) {
         
         if (now.getTime() - lastTriggered >= cooldownMs) {
           // Trigger the alert!
-          const message = `Flow Rate is ${val.toFixed(2)} L/min, breaching threshold: ${rule.operator} ${threshold.toFixed(2)} L/min.`;
+          const message = `Flow Rate is ${val.toFixed(2)} m3/h, breaching threshold: ${rule.operator} ${threshold.toFixed(2)} m3/h.`;
           
           // Log alert to database
           await AlertLog.create({
@@ -98,7 +98,7 @@ async function checkThresholdAlerts(deviceId, flow) {
           await sendAlertEmail({
             to: rule.email,
             subject: `Flow Threshold Breach on ${deviceId}`,
-            body: `Flow Rate threshold breached for device ${deviceId}.\n\nCondition: ${rule.operator} ${threshold} L/min\nObserved Flow Rate: ${val.toFixed(2)} L/min\nSeverity: ${rule.severity.toUpperCase()}\nTriggered At: ${now.toLocaleString()}`,
+            body: `Flow Rate threshold breached for device ${deviceId}.\n\nCondition: ${rule.operator} ${threshold} m3/h\nObserved Flow Rate: ${val.toFixed(2)} m3/h\nSeverity: ${rule.severity.toUpperCase()}\nTriggered At: ${now.toLocaleString()}`,
             severity: rule.severity,
             deviceId,
           });
