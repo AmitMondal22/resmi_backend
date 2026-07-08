@@ -51,7 +51,7 @@ async function sendAlertEmail({ to, subject, body, severity, deviceId }) {
     // Simulated print output
     console.log(`
 ============================================================
-📧 SIMULATED EMAIL DISPATCHED
+ SIMULATED EMAIL DISPATCHED
 ============================================================
 From:     ${from}
 To:       ${to}
