@@ -24,27 +24,40 @@ if (isConfigured) {
   console.log(`[Email Service] Running in SIMULATION MODE. Telemetry thresholds will trigger terminal mockups.`);
 }
 
-async function sendAlertEmail({ to, subject, body, severity, deviceId }) {
-  const badge = `[${severity.toUpperCase()} ALERT]`;
+async function sendAlertEmail({ to, subject, body, severity, deviceId, html, attachments }) {
+  const badge = severity ? `[${severity.toUpperCase()}]` : '';
+  const finalSubject = severity ? `${badge} ${subject}` : subject;
   
   if (isConfigured && transporter) {
     try {
-      await transporter.sendMail({
+      const mailOptions = {
         from,
         to,
-        subject: `${badge} ${subject}`,
+        subject: finalSubject,
         text: body,
-        html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px;">
-          <h2 style="color: ${severity === 'critical' ? '#dc2626' : '#d97706'}; text-transform: uppercase; margin-bottom: 10px;">${badge} Device: ${deviceId}</h2>
+      };
+
+      if (html) {
+        mailOptions.html = html;
+      } else {
+        const badgeText = severity ? `[${severity.toUpperCase()} ALERT]` : '[INFO]';
+        mailOptions.html = `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px;">
+          <h2 style="color: ${severity === 'critical' ? '#dc2626' : '#d97706'}; text-transform: uppercase; margin-bottom: 10px;">${badgeText} Device: ${deviceId || 'N/A'}</h2>
           <p style="font-size: 14px; color: #475569; line-height: 1.6;">${body.replace(/\n/g, '<br/>')}</p>
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
           <p style="font-size: 11px; color: #94a3b8;">This is an automated notification from RASHMI GROUP IoT Flow Monitoring System.</p>
-        </div>`,
-      });
-      console.log(`[Email Service] Alert email sent successfully to ${to} for device ${deviceId}`);
+        </div>`;
+      }
+
+      if (attachments) {
+        mailOptions.attachments = attachments;
+      }
+
+      await transporter.sendMail(mailOptions);
+      console.log(`[Email Service] Email sent successfully to ${to}`);
       return true;
     } catch (err) {
-      console.error(`[Email Service Error] Failed to send email alert to ${to}:`, err.message);
+      console.error(`[Email Service Error] Failed to send email to ${to}:`, err.message);
       return false;
     }
   } else {
@@ -55,12 +68,11 @@ async function sendAlertEmail({ to, subject, body, severity, deviceId }) {
 ============================================================
 From:     ${from}
 To:       ${to}
-Subject:  ${badge} ${subject}
-Severity: ${severity.toUpperCase()}
-Device:   ${deviceId}
+Subject:  ${finalSubject}
+Attachments: ${attachments ? attachments.map(a => a.filename).join(', ') : 'None'}
 
 Content:
-${body}
+${html || body}
 ============================================================
 `);
     return true;

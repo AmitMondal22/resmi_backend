@@ -43,6 +43,7 @@ fastify.register(require('./routes/deviceRoutes'), { prefix: '/api/devices' });
 fastify.register(require('./routes/assignmentRoutes'), { prefix: '/api/assignments' });
 fastify.register(require('./routes/telemetryRoutes'), { prefix: '/api/telemetry' });
 fastify.register(require('./routes/alertRoutes'), { prefix: '/api/alerts' });
+fastify.register(require('./routes/emailSettingsRoutes'), { prefix: '/api/email-settings' });
 
 // ================= WEBSOCKET LIVE ROUTE =================
 fastify.register(async (fastify) => {
@@ -95,11 +96,17 @@ fastify.register(async (fastify) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const { startDailyScheduler } = require('./services/scheduledEmailService');
 
 async function start() {
   try {
+    // Sync sequelize models (to ensure EmailRecipient table is created)
+    await sequelize.sync();
+    console.log('[Database] Database tables synced successfully.');
 
-    
+    // Start the daily midnight scheduler
+    startDailyScheduler();
+
     // Setup MQTT subscription and direct websocket broadcast callback
     initMqtt((data) => {
       if (!fastify.websocketServer) return;

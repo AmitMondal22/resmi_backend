@@ -20,6 +20,7 @@ const userUpdateSchema = Joi.object({
 const deviceCreateSchema = Joi.object({
   id: Joi.string().min(3).max(50).required(),
   name: Joi.string().min(3).max(100).required(),
+  site: Joi.string().allow('', null).optional(),
   location: Joi.string().allow('', null).optional(),
   details: Joi.string().allow('', null).optional(),
   status: Joi.string().valid('active', 'inactive').default('active'),
@@ -27,6 +28,7 @@ const deviceCreateSchema = Joi.object({
 
 const deviceUpdateSchema = Joi.object({
   name: Joi.string().min(3).max(100),
+  site: Joi.string().allow('', null).optional(),
   location: Joi.string().allow('', null).optional(),
   details: Joi.string().allow('', null).optional(),
   status: Joi.string().valid('active', 'inactive'),

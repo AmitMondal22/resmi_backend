@@ -67,6 +67,10 @@ async function getProfile(request, reply) {
 async function updateProfile(request, reply) {
   const { currentPassword, password } = request.body;
   try {
+    if (request.user.role !== 'admin') {
+      return reply.status(403).send({ error: 'Password modifications are restricted exclusively to the Admin login portal.' });
+    }
+
     const user = await User.findByPk(request.user.id);
     if (!user) {
       return reply.status(404).send({ error: 'User not found' });

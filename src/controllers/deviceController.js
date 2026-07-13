@@ -12,13 +12,13 @@ async function getAllDevices(request, reply) {
 }
 
 async function createDevice(request, reply) {
-  const { id, name, location, details, status } = request.body;
+  const { id, name, site, location, details, status } = request.body;
   try {
     const existing = await Device.findByPk(id);
     if (existing) {
       return reply.status(400).send({ error: 'Device with this ID already exists' });
     }
-    const device = await Device.create({ id, name, location, details, status });
+    const device = await Device.create({ id, name, site, location, details, status });
     return device;
   } catch (err) {
     return reply.status(500).send({ error: err.message });
@@ -27,13 +27,14 @@ async function createDevice(request, reply) {
 
 async function updateDevice(request, reply) {
   const { id } = request.params;
-  const { name, location, details, status } = request.body;
+  const { name, site, location, details, status } = request.body;
   try {
     const device = await Device.findByPk(id);
     if (!device) {
       return reply.status(404).send({ error: 'Device not found' });
     }
     if (name) device.name = name;
+    if (site !== undefined) device.site = site;
     if (location !== undefined) device.location = location;
     if (details !== undefined) device.details = details;
     if (status) device.status = status;

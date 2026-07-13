@@ -47,6 +47,10 @@ const Device = sequelize.define('Device', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  site: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   location: {
     type: DataTypes.STRING,
     allowNull: true,
@@ -178,11 +182,40 @@ AlertRule.belongsTo(Device, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
 Device.hasMany(AlertLog, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
 AlertLog.belongsTo(Device, { foreignKey: 'deviceId', onDelete: 'CASCADE' });
 
+const EmailRecipient = sequelize.define('EmailRecipient', {
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+  status: {
+    type: DataTypes.STRING, // 'active' | 'inactive'
+    allowNull: false,
+    defaultValue: 'active',
+  },
+  effectiveStatus: {
+    type: DataTypes.STRING, // 'active' | 'inactive' | 'none'
+    allowNull: false,
+    defaultValue: 'none',
+  },
+  isDeleted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  }
+});
+
 module.exports = {
   sequelize,
   User,
   Device,
   UserDevice,
   AlertRule,
-  AlertLog
+  AlertLog,
+  EmailRecipient
 };
