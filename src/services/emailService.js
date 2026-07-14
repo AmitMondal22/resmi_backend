@@ -63,18 +63,18 @@ async function sendAlertEmail({ to, subject, body, severity, deviceId, html, att
   } else {
     // Simulated print output
     console.log(`
-============================================================
- SIMULATED EMAIL DISPATCHED
-============================================================
-From:     ${from}
-To:       ${to}
-Subject:  ${finalSubject}
-Attachments: ${attachments ? attachments.map(a => a.filename).join(', ') : 'None'}
+      ============================================================
+      SIMULATED EMAIL DISPATCHED
+      ============================================================
+      From:     ${from}
+      To:       ${to}
+      Subject:  ${finalSubject}
+      Attachments: ${attachments ? attachments.map(a => a.filename).join(', ') : 'None'}
 
-Content:
-${html || body}
-============================================================
-`);
+      Content:
+      ${html || body}
+      ============================================================
+    `);
     return true;
   }
 }

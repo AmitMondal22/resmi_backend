@@ -2,15 +2,41 @@ const { EmailRecipient, Device, AlertLog } = require('../db/models');
 const { sendAlertEmail } = require('./emailService');
 const { queryTelemetry } = require('../influx/influx');
 
-// Helper to compute the next run date based on "HH:MM" schedule string
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+
+// Helper to format a standard date to a readable IST timezone string (YYYY-MM-DD HH:mm:ss)
+function formatToIST(dateInput) {
+  const d = new Date(dateInput);
+  const istDate = new Date(d.getTime() + IST_OFFSET_MS);
+  const pad = num => String(num).padStart(2, '0');
+  const year = istDate.getUTCFullYear();
+  const month = pad(istDate.getUTCMonth() + 1);
+  const date = pad(istDate.getUTCDate());
+  const hours = pad(istDate.getUTCHours());
+  const minutes = pad(istDate.getUTCMinutes());
+  const seconds = pad(istDate.getUTCSeconds());
+  return `${year}-${month}-${date} ${hours}:${minutes}:${seconds}`;
+}
+
+// Helper to compute the next run Date in UTC matching the specified "HH:MM" schedule time in IST
 function getNextScheduleTime(scheduleStr) {
   const [hours, minutes] = scheduleStr.split(':').map(Number);
   const now = new Date();
-  const nextRun = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
-  if (now.getTime() >= nextRun.getTime()) {
-    nextRun.setDate(nextRun.getDate() + 1); // Run tomorrow
+  
+  // 1. Convert current UTC/local time to IST reference calendar
+  const istTime = new Date(now.getTime() + IST_OFFSET_MS);
+  
+  // 2. Set the target time on the IST calendar
+  const targetIst = new Date(istTime);
+  targetIst.setUTCHours(hours, minutes, 0, 0);
+  
+  // 3. If target has passed in IST today, roll over to tomorrow
+  if (istTime.getTime() >= targetIst.getTime()) {
+    targetIst.setUTCDate(targetIst.getUTCDate() + 1);
   }
-  return nextRun;
+  
+  // 4. Convert the target IST date back to the standard Date object
+  return new Date(targetIst.getTime() - IST_OFFSET_MS);
 }
 
 async function sendScheduledDailyEmails() {
@@ -18,15 +44,25 @@ async function sendScheduledDailyEmails() {
     const hourOffset = parseInt(process.env.REPORT_HOUR_OFFSET) || 6;
     const reportInterval = process.env.REPORT_INTERVAL || '3600';
 
-    // 1. Calculate the 24-hour range (yesterday at 6 AM to today at 6 AM)
+    // 1. Calculate the 24-hour range in IST (yesterday at 6 AM IST to today at 6 AM IST)
     const now = new Date();
-    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hourOffset, 0, 0, 0);
-    const startTime = new Date(endTime);
-    startTime.setDate(startTime.getDate() - 1);
+    const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+    
+    // Set endTime in IST timezone calendar representation
+    const endTimeIst = new Date(istNow);
+    endTimeIst.setUTCHours(hourOffset, 0, 0, 0);
+    
+    // Set startTime in IST timezone calendar representation (24 hours earlier)
+    const startTimeIst = new Date(endTimeIst);
+    startTimeIst.setUTCDate(startTimeIst.getUTCDate() - 1);
+    
+    // Convert both back to real system Dates
+    const endTime = new Date(endTimeIst.getTime() - IST_OFFSET_MS);
+    const startTime = new Date(startTimeIst.getTime() - IST_OFFSET_MS);
 
-    const startStr = startTime.toLocaleString();
-    const endStr = endTime.toLocaleString();
-    const dateFileStr = startTime.toISOString().split('T')[0];
+    const startStr = formatToIST(startTime) + ' (IST)';
+    const endStr = formatToIST(endTime) + ' (IST)';
+    const dateFileStr = formatToIST(startTime).split(' ')[0]; // YYYY-MM-DD
 
     // Find all recipients that are active TODAY
     const activeRecipients = await EmailRecipient.findAll({
@@ -76,10 +112,10 @@ async function sendScheduledDailyEmails() {
 
       console.log(`[Scheduled Email] Generating CSV attachment for ${device.id} (${rows.length} rows)`);
 
-      // Generate CSV content
-      const csvHeader = 'Timestamp,Flow Rate (m3/h),Total Flow (m3/h),Min Value,Max Value,Overflow Count,Cumulative Totalizer (m3/h)\n';
+      // Generate CSV content with local IST timestamp
+      const csvHeader = 'Timestamp (IST),Flow Rate (m3/h),Total Flow (m3/h),Min Value,Max Value,Overflow Count,Cumulative Totalizer (m3/h)\n';
       const csvRows = rows.map(r => {
-        const timeStr = new Date(r.time).toISOString();
+        const timeStr = formatToIST(r.time);
         return `${timeStr},${r.flow},${r.total_flow},${r.minValue},${r.maxValue},${r.overflowCount},${r.cumulativeTotalizer}`;
       }).join('\n');
       const csvContent = csvHeader + csvRows;
@@ -119,13 +155,13 @@ async function sendScheduledDailyEmails() {
           <div style="background-color: #eff6ff; color: #2563eb; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; margin-right: 12px;">📊</div>
           <div>
             <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0;">Daily IoT Flow Status Summary Report</h2>
-            <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0; text-transform: uppercase; font-weight: bold; tracking-wider: 0.05em;">Reporting Period: ${dateFileStr} (6:00 AM to 6:00 AM)</p>
+            <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0; text-transform: uppercase; font-weight: bold; tracking-wider: 0.05em;">Reporting Period: ${dateFileStr} (6:00 AM to 6:00 AM IST)</p>
           </div>
         </div>
         
         <p style="font-size: 13px; color: #334155; line-height: 1.6; margin-bottom: 20px;">
           Hello,<br/><br/>
-          Here is the final daily summary of all monitored IoT devices. The table below represents the last reported state for each device during the completed 24-hour scheduling window (<strong>${hourOffset}:00 AM yesterday</strong> to <strong>${hourOffset}:00 AM today</strong>).
+          Here is the final daily summary of all monitored IoT devices. The table below represents the last reported state for each device during the completed 24-hour scheduling window (<strong>${hourOffset}:00 AM yesterday IST</strong> to <strong>${hourOffset}:00 AM today IST</strong>).
         </p>
 
         <div style="overflow-x: auto; margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
@@ -147,7 +183,7 @@ async function sendScheduledDailyEmails() {
         </div>
 
         <p style="font-size: 13px; color: #334155; line-height: 1.6; margin-bottom: 20px;">
-          Detailed CSV data logs for each active device are attached directly to this email.
+          Detailed CSV data logs for each active device are attached directly to this email with timestamps formatted in IST.
         </p>
 
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
@@ -196,7 +232,7 @@ async function applyNextDayEmailSettings() {
   }
 }
 
-// Schedule daily run at configured schedule time (e.g. 6 AM)
+// Schedule daily run at configured schedule time (e.g. 6 AM IST)
 let schedulerTimeout = null;
 function startDailyScheduler() {
   const scheduleTime = process.env.REPORT_SCHEDULE_TIME || '06:00';
@@ -205,7 +241,7 @@ function startDailyScheduler() {
   const nextRun = getNextScheduleTime(scheduleTime);
   const msToNextRun = nextRun.getTime() - now.getTime();
   
-  console.log(`[Scheduler] Daily scheduler initialized. Schedule time: ${scheduleTime}. Next trigger: ${nextRun.toLocaleString()}. Time until trigger: ${(msToNextRun / 1000 / 60).toFixed(2)} minutes.`);
+  console.log(`[Scheduler] Daily scheduler initialized (IST Timezone). Schedule time: ${scheduleTime} IST. Next trigger: ${formatToIST(nextRun)} (IST). Time until trigger: ${(msToNextRun / 1000 / 60).toFixed(2)} minutes.`);
   
   schedulerTimeout = setTimeout(async function tick() {
     console.log('[Scheduler] Daily report trigger activated! Preparing daily status reports...');
