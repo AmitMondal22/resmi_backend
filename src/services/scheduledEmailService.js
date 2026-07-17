@@ -133,7 +133,7 @@ async function sendScheduledDailyEmails() {
 
       // Prepare final telemetry summary values (last row in the period)
       const finalFlow = `${parseFloat(lastRow.flow).toFixed(2)} m³/h`;
-      const finalTotalizer = `${parseFloat(lastRow.cumulativeTotalizer).toFixed(2)} m³`;
+      const finalTotalizer = `${parseFloat(lastRow.cumulativeTotalizer).toFixed(2)} kL`;
 
       tableRows += `
         <tr style="border-bottom: 1px solid #e2e8f0;">

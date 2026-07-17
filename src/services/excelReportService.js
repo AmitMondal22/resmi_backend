@@ -163,7 +163,7 @@ async function generateExcelReport(device, rows, dateStr, bases) {
         C: r.flow !== undefined ? parseFloat(r.flow) : 0,
         D: 'm3/h',
         E: r.cumulativeTotalizer !== undefined ? parseFloat(r.cumulativeTotalizer) : 0,
-        F: 'm3'
+        F: 'kL'
       };
 
       Object.entries(cellValues).forEach(([colLetter, val], idx) => {
@@ -255,7 +255,7 @@ async function generateExcelReport(device, rows, dateStr, bases) {
 
     // F is the unit
     const unitCell = worksheet.getCell(`F${currentRowNum}`);
-    unitCell.value = 'm3';
+    unitCell.value = 'kL';
     unitCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
     // Set borders for Row
