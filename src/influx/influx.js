@@ -221,4 +221,5 @@ module.exports = {
   writeTelemetry,
   queryTelemetry,
   queryLatestTelemetry,
+  getBaseTotalizers,
 };

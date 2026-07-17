@@ -1,6 +1,7 @@
 const { EmailRecipient, Device, AlertLog } = require('../db/models');
 const { sendAlertEmail } = require('./emailService');
-const { queryTelemetry } = require('../influx/influx');
+const { queryTelemetry, getBaseTotalizers } = require('../influx/influx');
+const { generateExcelReport } = require('./excelReportService');
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
 
@@ -110,25 +111,27 @@ async function sendScheduledDailyEmails() {
         continue;
       }
 
-      console.log(`[Scheduled Email] Generating CSV attachment for ${device.id} (${rows.length} rows)`);
+      console.log(`[Scheduled Email] Generating Excel attachment for ${device.id} (${rows.length} rows)`);
 
-      // Generate CSV content with local IST timestamp
-      const csvHeader = 'Timestamp (IST),Flow Rate (m3/h),Total Flow (m3/h),Min Value,Max Value,Overflow Count,Cumulative Totalizer (m3/h)\n';
-      const csvRows = rows.map(r => {
-        const timeStr = formatToIST(r.time);
-        return `${timeStr},${r.flow},${r.total_flow},${r.minValue},${r.maxValue},${r.overflowCount},${r.cumulativeTotalizer}`;
-      }).join('\n');
-      const csvContent = csvHeader + csvRows;
+      const lastRow = rows[rows.length - 1];
+      let bases = { today_base: null, month_base: null };
+      try {
+        bases = await getBaseTotalizers(device.id, lastRow.cumulativeTotalizer);
+      } catch (baseErr) {
+        console.warn(`[Scheduled Email Warning] Failed to fetch base totalizers for device ${device.id}: ${baseErr.message}`);
+      }
 
-      const filename = `telemetry_report_${device.id}_${dateFileStr}_6AM_to_6AM.csv`;
+      // Generate styled Excel
+      const excelBuffer = await generateExcelReport(device, rows, dateFileStr, bases);
+
+      const filename = `telemetry_report_${device.id}_${dateFileStr}_6AM_to_6AM.xlsx`;
       attachments.push({
         filename,
-        content: csvContent,
-        contentType: 'text/csv'
+        content: excelBuffer,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       });
 
       // Prepare final telemetry summary values (last row in the period)
-      const lastRow = rows[rows.length - 1];
       const finalFlow = `${parseFloat(lastRow.flow).toFixed(2)} m³/h`;
       const finalTotalizer = `${parseFloat(lastRow.cumulativeTotalizer).toFixed(2)} m³`;
 
@@ -183,7 +186,7 @@ async function sendScheduledDailyEmails() {
         </div>
 
         <p style="font-size: 13px; color: #334155; line-height: 1.6; margin-bottom: 20px;">
-          Detailed CSV data logs for each active device are attached directly to this email with timestamps formatted in IST.
+          Detailed Excel data logs for each active device are attached directly to this email with timestamps formatted in IST.
         </p>
 
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
