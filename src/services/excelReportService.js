@@ -31,7 +31,7 @@ function formatToIST(dateInput) {
 }
 
 /**
- * Generates a styled Excel sheet matching the Water Consumption Report template.
+ * Generates a styled Excel sheet with exactly the 6 requested columns.
  * 
  * @param {Object} device - Device DB record { id, name, site, location }
  * @param {Array} rows - Telemetry data rows
@@ -47,32 +47,28 @@ async function generateExcelReport(device, rows, dateStr, bases) {
 
   // 1. Column dimensions
   worksheet.columns = [
-    { key: 'time', width: 13.0 },
-    { key: 'reading', width: 9.86 },
-    { key: 'avgFlow', width: 10.43 },
-    { key: 'flowUnit', width: 11.86 },
-    { key: 'velocity', width: 9.71 },
-    { key: 'velocityUnit', width: 12.43 },
-    { key: 'posComm', width: 21.14 },
-    { key: 'negComm', width: 24.29 },
-    { key: 'commTotal', width: 18.0 },
-    { key: 'commUnit', width: 17.29 }
+    { key: 'time', width: 22.0 },
+    { key: 'reading', width: 12.0 },
+    { key: 'flow', width: 12.0 },
+    { key: 'flowUnit', width: 12.0 },
+    { key: 'commTotal', width: 20.0 },
+    { key: 'commUnit', width: 18.0 }
   ];
 
   // 2. Row 1: Merged Title
-  worksheet.mergeCells('B1:J1');
+  worksheet.mergeCells('B1:F1');
   const titleCell = worksheet.getCell('B1');
   titleCell.value = 'DAILY WATER METER READING LOG SHEET';
   titleCell.font = { name: 'Calibri', size: 24, bold: false };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
   worksheet.getRow(1).height = 35;
 
-  // Apply borders for Row 1 (A1 separate, B1-J1 merged)
+  // Apply borders for Row 1 (A1 separate, B1-F1 merged)
   setCellBorder(worksheet.getCell('A1'), { left: 'medium', top: 'medium', bottom: 'thin', right: 'thin' });
-  for (let col = 2; col <= 9; col++) {
+  for (let col = 2; col <= 5; col++) {
     setCellBorder(worksheet.getCell(1, col), { top: 'medium', bottom: 'thin' });
   }
-  setCellBorder(worksheet.getCell('J1'), { right: 'medium', top: 'medium', bottom: 'thin' });
+  setCellBorder(worksheet.getCell('F1'), { right: 'medium', top: 'medium', bottom: 'thin' });
 
   // 3. Row 2: Location and Date
   worksheet.getRow(2).height = 20;
@@ -80,27 +76,24 @@ async function generateExcelReport(device, rows, dateStr, bases) {
   worksheet.getCell('A2').font = { name: 'Calibri', size: 11, bold: true };
   setCellBorder(worksheet.getCell('A2'), { left: 'medium', top: 'thin', bottom: 'thin', right: 'thin' });
 
-  worksheet.mergeCells('B2:G2');
+  worksheet.mergeCells('B2:D2');
   const locValCell = worksheet.getCell('B2');
   locValCell.value = device.location || '';
   locValCell.font = { name: 'Calibri', size: 11 };
   locValCell.alignment = { horizontal: 'left', vertical: 'middle' };
-  for (let col = 2; col <= 7; col++) {
+  for (let col = 2; col <= 4; col++) {
     setCellBorder(worksheet.getCell(2, col), { top: 'thin', bottom: 'thin' });
   }
-  worksheet.getCell('G2').border.right = { style: 'thin' };
+  worksheet.getCell('D2').border.right = { style: 'thin' };
 
-  worksheet.getCell('H2').value = 'Date';
-  worksheet.getCell('H2').font = { name: 'Calibri', size: 11, bold: true };
-  setCellBorder(worksheet.getCell('H2'), { left: 'thin', top: 'thin', bottom: 'thin', right: 'thin' });
+  worksheet.getCell('E2').value = 'Date';
+  worksheet.getCell('E2').font = { name: 'Calibri', size: 11, bold: true };
+  setCellBorder(worksheet.getCell('E2'), { left: 'thin', top: 'thin', bottom: 'thin', right: 'thin' });
 
-  worksheet.mergeCells('I2:J2');
-  const dateValCell = worksheet.getCell('I2');
-  dateValCell.value = dateStr;
-  dateValCell.font = { name: 'Calibri', size: 11 };
-  dateValCell.alignment = { horizontal: 'left', vertical: 'middle' };
-  setCellBorder(worksheet.getCell('I2'), { top: 'thin', bottom: 'thin' });
-  setCellBorder(worksheet.getCell('J2'), { right: 'medium', top: 'thin', bottom: 'thin' });
+  worksheet.getCell('F2').value = dateStr;
+  worksheet.getCell('F2').font = { name: 'Calibri', size: 11 };
+  worksheet.getCell('F2').alignment = { horizontal: 'left', vertical: 'middle' };
+  setCellBorder(worksheet.getCell('F2'), { right: 'medium', top: 'thin', bottom: 'thin' });
 
   // 4. Row 3: Site and Water Meter No
   worksheet.getRow(3).height = 20;
@@ -108,52 +101,44 @@ async function generateExcelReport(device, rows, dateStr, bases) {
   worksheet.getCell('A3').font = { name: 'Calibri', size: 11, bold: true };
   setCellBorder(worksheet.getCell('A3'), { left: 'medium', top: 'thin', bottom: 'thin', right: 'thin' });
 
-  worksheet.mergeCells('B3:G3');
+  worksheet.mergeCells('B3:D3');
   const siteValCell = worksheet.getCell('B3');
   siteValCell.value = device.site || '';
   siteValCell.font = { name: 'Calibri', size: 11 };
   siteValCell.alignment = { horizontal: 'left', vertical: 'middle' };
-  for (let col = 2; col <= 7; col++) {
+  for (let col = 2; col <= 4; col++) {
     setCellBorder(worksheet.getCell(3, col), { top: 'thin', bottom: 'thin' });
   }
-  worksheet.getCell('G3').border.right = { style: 'thin' };
+  worksheet.getCell('D3').border.right = { style: 'thin' };
 
-  worksheet.getCell('H3').value = 'Water Meter No';
-  worksheet.getCell('H3').font = { name: 'Calibri', size: 11, bold: true };
-  setCellBorder(worksheet.getCell('H3'), { left: 'thin', top: 'thin', bottom: 'thin', right: 'thin' });
+  worksheet.getCell('E3').value = 'Water Meter No';
+  worksheet.getCell('E3').font = { name: 'Calibri', size: 11, bold: true };
+  setCellBorder(worksheet.getCell('E3'), { left: 'thin', top: 'thin', bottom: 'thin', right: 'thin' });
 
-  worksheet.mergeCells('I3:J3');
-  const meterValCell = worksheet.getCell('I3');
-  meterValCell.value = device.id;
-  meterValCell.font = { name: 'Calibri', size: 11 };
-  meterValCell.alignment = { horizontal: 'left', vertical: 'middle' };
-  setCellBorder(worksheet.getCell('I3'), { top: 'thin', bottom: 'thin' });
-  setCellBorder(worksheet.getCell('J3'), { right: 'medium', top: 'thin', bottom: 'thin' });
+  worksheet.getCell('F3').value = device.id;
+  worksheet.getCell('F3').font = { name: 'Calibri', size: 11 };
+  worksheet.getCell('F3').alignment = { horizontal: 'left', vertical: 'middle' };
+  setCellBorder(worksheet.getCell('F3'), { right: 'medium', top: 'thin', bottom: 'thin' });
 
   // 5. Row 4: Table Headers
   worksheet.getRow(4).height = 25;
   const headers = [
-    { col: 1, val: 'Time' },
+    { col: 1, val: 'time' },
     { col: 2, val: 'Reading' },
-    { col: 3, val: 'Avg Flow' },
+    { col: 3, val: 'flow' },
     { col: 4, val: 'Flow Unit' },
-    { col: 5, val: 'Velocity' },
-    { col: 6, val: 'Velocity Unit' },
-    { col: 7, val: 'Positive  Commulative' },
-    { col: 8, val: 'Negative  Commulative' },
-    { col: 9, val: 'Commulative Total' },
-    { col: 10, val: 'Commulative Unit' }
+    { col: 5, val: 'Commulative Total' },
+    { col: 6, val: 'Commulative Unit' }
   ];
 
   headers.forEach(h => {
     const cell = worksheet.getCell(4, h.col);
     cell.value = h.val;
     cell.font = { name: 'Calibri', size: 11, bold: true };
-    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
     
-    // Set headers borders
     const isLeft = h.col === 1;
-    const isRight = h.col === 10;
+    const isRight = h.col === 6;
     setCellBorder(cell, {
       left: isLeft ? 'medium' : 'thin',
       right: isRight ? 'medium' : 'thin',
@@ -174,15 +159,11 @@ async function generateExcelReport(device, rows, dateStr, bases) {
       
       const cellValues = {
         A: timeStr,
-        B: null, // Reading (leave empty)
+        B: null, // Reading
         C: r.flow !== undefined ? parseFloat(r.flow) : 0,
         D: 'm3/h',
-        E: null, // Velocity (leave empty)
-        F: 'm/s',
-        G: r.cumulativeTotalizer !== undefined ? parseFloat(r.cumulativeTotalizer) : 0,
-        H: 0.00, // Negative Cumulative (always 0)
-        I: r.cumulativeTotalizer !== undefined ? parseFloat(r.cumulativeTotalizer) : 0,
-        J: 'm3'
+        E: r.cumulativeTotalizer !== undefined ? parseFloat(r.cumulativeTotalizer) : 0,
+        F: 'm3'
       };
 
       Object.entries(cellValues).forEach(([colLetter, val], idx) => {
@@ -191,7 +172,6 @@ async function generateExcelReport(device, rows, dateStr, bases) {
         cell.value = val;
         cell.font = { name: 'Calibri', size: 11 };
 
-        // Number format
         if (typeof val === 'number') {
           cell.numFmt = '#,##0.00';
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
@@ -199,9 +179,8 @@ async function generateExcelReport(device, rows, dateStr, bases) {
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
         }
 
-        // Borders
         const isLeft = colIdx === 1;
-        const isRight = colIdx === 10;
+        const isRight = colIdx === 6;
         setCellBorder(cell, {
           left: isLeft ? 'medium' : 'thin',
           right: isRight ? 'medium' : 'thin',
@@ -213,13 +192,13 @@ async function generateExcelReport(device, rows, dateStr, bases) {
       nextRow++;
     });
   } else {
-    // Write at least one empty row if no data
+    // Write at least one empty row
     worksheet.getRow(nextRow).height = 20;
-    for (let c = 1; c <= 10; c++) {
+    for (let c = 1; c <= 6; c++) {
       const cell = worksheet.getCell(nextRow, c);
       setCellBorder(cell, {
         left: c === 1 ? 'medium' : 'thin',
-        right: c === 10 ? 'medium' : 'thin',
+        right: c === 6 ? 'medium' : 'thin',
         top: 'thin',
         bottom: 'thin'
       });
@@ -227,13 +206,13 @@ async function generateExcelReport(device, rows, dateStr, bases) {
     nextRow++;
   }
 
-  // 7. Row 29 (Blank Row with left/right medium borders)
+  // 7. Row 29 (Blank Row with left/right borders)
   worksheet.getRow(nextRow).height = 20;
-  for (let c = 1; c <= 10; c++) {
+  for (let c = 1; c <= 6; c++) {
     const cell = worksheet.getCell(nextRow, c);
     setCellBorder(cell, {
       left: c === 1 ? 'medium' : undefined,
-      right: c === 10 ? 'medium' : undefined
+      right: c === 6 ? 'medium' : undefined
     });
   }
   nextRow++;
@@ -244,88 +223,53 @@ async function generateExcelReport(device, rows, dateStr, bases) {
   const lastTotalizer = parseFloat(lastRowData.cumulativeTotalizer || 0);
   const firstTotalizer = parseFloat(firstRowData.cumulativeTotalizer || 0);
 
-  // Baselines from database
   const prevMonthBase = bases && bases.month_base !== null ? parseFloat(bases.month_base) : firstTotalizer;
   const prevDayBase = bases && bases.today_base !== null ? parseFloat(bases.today_base) : firstTotalizer;
 
-  // Consumptions
   const todayConsumption = Math.max(0, lastTotalizer - prevDayBase);
   const monthConsumption = Math.max(0, lastTotalizer - prevMonthBase);
 
-  // 9. Row 30: Previous Month Totalizer & Today Consumption
-  worksheet.getRow(nextRow).height = 25;
-  
-  // Previous Month block
-  worksheet.getCell(`A${nextRow}`).value = 'Previous Month Total Commulative :';
-  worksheet.getCell(`E${nextRow}`).value = prevMonthBase;
-  worksheet.getCell(`F${nextRow}`).value = 'm3';
+  // 9. Row 30 to 33: Stacking totals vertically
+  const totalsData = [
+    { label: 'Previous Month Total Commulative :', value: prevMonthBase },
+    { label: 'Previous Day Total Commulative :', value: prevDayBase },
+    { label: 'Today Total Commulative: ', value: todayConsumption },
+    { label: 'Current Month Total Commulative: ', value: monthConsumption }
+  ];
 
-  // Today block
-  worksheet.getCell(`G${nextRow}`).value = 'Today Total Commulative: ';
-  worksheet.getCell(`I${nextRow}`).value = todayConsumption;
-  worksheet.getCell(`J${nextRow}`).value = 'm3';
+  totalsData.forEach((t, i) => {
+    const currentRowNum = nextRow + i;
+    worksheet.getRow(currentRowNum).height = 25;
 
-  // Formatting & Alignment for Row 30
-  worksheet.getCell(`A${nextRow}`).alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getCell(`E${nextRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
-  worksheet.getCell(`E${nextRow}`).numFmt = '#,##0.00';
-  worksheet.getCell(`F${nextRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  
-  worksheet.getCell(`G${nextRow}`).alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getCell(`I${nextRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
-  worksheet.getCell(`I${nextRow}`).numFmt = '#,##0.00';
-  worksheet.getCell(`J${nextRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    // Merge A:D for the label
+    worksheet.mergeCells(`A${currentRowNum}:D${currentRowNum}`);
+    const labelCell = worksheet.getCell(`A${currentRowNum}`);
+    labelCell.value = t.label;
+    labelCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
-  for (let c = 1; c <= 10; c++) {
-    const cell = worksheet.getCell(nextRow, c);
-    cell.font = { name: 'Calibri', size: 11, bold: false };
-    
-    // Borders for Row 30
-    setCellBorder(cell, {
-      top: 'medium',
-      bottom: 'medium',
-      left: (c === 1 || c === 2 || c === 3 || c === 4 || c === 5 || c === 6 || c === 7) ? 'medium' : undefined,
-      right: (c === 1 || c === 2 || c === 3 || c === 4 || c === 5 || c === 6 || c === 7 || c === 10) ? 'medium' : undefined
-    });
-  }
-  nextRow++;
+    // E is the value
+    const valCell = worksheet.getCell(`E${currentRowNum}`);
+    valCell.value = t.value;
+    valCell.alignment = { horizontal: 'right', vertical: 'middle' };
+    valCell.numFmt = '#,##0.00';
 
-  // 10. Row 31: Previous Day Totalizer & Current Month Consumption
-  worksheet.getRow(nextRow).height = 25;
+    // F is the unit
+    const unitCell = worksheet.getCell(`F${currentRowNum}`);
+    unitCell.value = 'm3';
+    unitCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
-  // Previous Day block
-  worksheet.getCell(`A${nextRow}`).value = 'Previous Day Total Commulative :';
-  worksheet.getCell(`E${nextRow}`).value = prevDayBase;
-  worksheet.getCell(`F${nextRow}`).value = 'm3';
-
-  // Current Month block
-  worksheet.getCell(`G${nextRow}`).value = 'Current Month Total Commulative: ';
-  worksheet.getCell(`I${nextRow}`).value = monthConsumption;
-  worksheet.getCell(`J${nextRow}`).value = 'm3';
-
-  // Formatting & Alignment for Row 31
-  worksheet.getCell(`A${nextRow}`).alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getCell(`E${nextRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
-  worksheet.getCell(`E${nextRow}`).numFmt = '#,##0.00';
-  worksheet.getCell(`F${nextRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
-  
-  worksheet.getCell(`G${nextRow}`).alignment = { horizontal: 'left', vertical: 'middle' };
-  worksheet.getCell(`I${nextRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
-  worksheet.getCell(`I${nextRow}`).numFmt = '#,##0.00';
-  worksheet.getCell(`J${nextRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
-
-  for (let c = 1; c <= 10; c++) {
-    const cell = worksheet.getCell(nextRow, c);
-    cell.font = { name: 'Calibri', size: 11, bold: false };
-    
-    // Borders for Row 31
-    setCellBorder(cell, {
-      top: 'medium',
-      bottom: 'medium',
-      left: (c === 1 || c === 2 || c === 3 || c === 4 || c === 5 || c === 6 || c === 7 || c === 9) ? 'medium' : undefined,
-      right: (c === 1 || c === 2 || c === 3 || c === 4 || c === 5 || c === 6 || c === 7 || c === 10) ? 'medium' : undefined
-    });
-  }
+    // Set borders for Row
+    for (let c = 1; c <= 6; c++) {
+      const cell = worksheet.getCell(currentRowNum, c);
+      cell.font = { name: 'Calibri', size: 11, bold: false };
+      setCellBorder(cell, {
+        top: 'medium',
+        bottom: 'medium',
+        left: (c === 1 || c === 5 || c === 6) ? 'medium' : undefined,
+        right: (c === 4 || c === 5 || c === 6) ? 'medium' : undefined
+      });
+    }
+  });
 
   // Generate buffer and return
   const buffer = await workbook.xlsx.writeBuffer();
